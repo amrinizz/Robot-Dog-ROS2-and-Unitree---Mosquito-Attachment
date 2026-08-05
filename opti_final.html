@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Unitree Go2 Control Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <script src="roslib.min.js"></script>
+  <script src="nipplejs.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #020617;
+      --bg-panel: #0b1120;
+      --text: #f9fafb;
+      --muted: #9ca3af;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --border: rgba(148,163,184,0.35);
+      --radius-lg: 16px;
+      --shadow: 0 16px 40px rgba(15,23,42,0.75);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at top, #111827 0, #020617 55%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app {
+      max-width: 1200px;
+      margin: 20px auto 32px;
+      padding: 0 16px;
+      width: 100%;
+    }
+
+    /* HEADER */
+    header {
+      background: linear-gradient(90deg, #0b1120, #020617);
+      border-radius: 999px;
+      padding: 10px 18px;
+      border: 1px solid rgba(148,163,184,0.4);
+      box-shadow: 0 10px 30px rgba(15,23,42,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    header .title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .title-badge {
+      width: 18px; height: 18px;
+      border-radius: 999px; border: 2px solid #22c55e;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .title-badge span {
+      width: 8px; height: 8px;
+      border-radius: 999px; background: #22c55e;
+      box-shadow: 0 0 8px rgba(34,197,94,0.85);
+    }
+
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 999px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid var(--border); font-size: 0.8rem;
+    }
+
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 999px; background: var(--muted);
+    }
+    .status-dot.connected { background: var(--success); box-shadow: 0 0 8px rgba(34,197,94,0.9); }
+    .status-dot.error { background: var(--danger); box-shadow: 0 0 8px rgba(239,68,68,0.9); }
+
+    /* LAYOUT GRID */
+    .layout {
+      display: grid;
+      grid-template-columns: 210px minmax(0, 1fr) 210px;
+      gap: 16px;
+      background: rgba(15,23,42,0.95);
+      border-radius: 24px; padding: 16px;
+      border: 1px solid rgba(148,163,184,0.45);
+      box-shadow: var(--shadow);
+    }
+
+    @media (max-width: 960px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+    /* PANELS */
+    .panel {
+      background: radial-gradient(circle at top, #020617 0, #020617 60%);
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(31,41,55,0.9);
+      padding: 14px; position: relative; overflow: hidden;
+    }
+    .panel h2 {
+      margin: 0 0 6px; font-size: 0.9rem;
+      text-transform: uppercase; letter-spacing: 0.08em; color: #e5e7eb;
+    }
+    .panel-sub { font-size: 0.75rem; color: var(--muted); margin-bottom: 8px; }
+
+    /* BUTTONS */
+    .btn {
+      border-radius: 999px; border: 1px solid var(--border);
+      background: rgba(15,23,42,0.9); color: var(--text);
+      padding: 10px 16px; font-size: 0.9rem; font-weight: 500;
+      cursor: pointer; width: 100%;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: transform 0.08s ease-out, background 0.15s;
+      user-select: none; /* Prevent text selection while holding */
+    }
+    .btn:active { transform: translateY(1px); }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #3b82f6, #06b6d4);
+      border-color: rgba(59,130,246,0.9);
+      box-shadow: 0 8px 20px rgba(37,99,235,0.25);
+    }
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444, #f97316);
+      border-color: rgba(248,113,113,0.9);
+      box-shadow: 0 8px 20px rgba(239,68,68,0.3);
+    }
+    .btn-circle { width: 64px; height: 64px; border-radius: 999px; border-width: 2px; }
+
+    /* LAYOUT HELPERS */
+    .btn-spacer { height: 8px; }
+    .lr-row { display: flex; gap: 8px; margin-top: 8px; }
+    .lr-row .btn { width: 100%; }
+
+    .speed-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-size: 0.78rem; }
+    .speed-pill {
+      border-radius: 999px; border: 1px solid var(--border);
+      background: rgba(15,23,42,0.9); padding: 3px 10px;
+      font-size: 0.75rem; cursor: pointer; color: var(--muted);
+    }
+    .speed-pill.active {
+      background: rgba(59,130,246,0.2); border-color: rgba(59,130,246,0.9); color: #e5e7eb;
+    }
+
+    /* VIDEO STREAM */
+    .video-shell { display: flex; flex-direction: column; gap: 10px; }
+    .video-frame {
+      border-radius: 18px; overflow: hidden;
+      border: 1px solid rgba(31,41,55,0.9); background: #000;
+    }
+    #stream { display: block; width: 100%; max-height: 420px; object-fit: contain; }
+
+    .ip-row { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); }
+    .ip-row code {
+      background: rgba(15,23,42,0.9); padding: 2px 6px;
+      border-radius: 6px; border: 1px solid var(--border);
+      color: #e5e7eb;
+    }
+
+    /* CONTROLS AREA */
+    .mode-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .mode-select select {
+      background: rgba(15,23,42,0.95); color: var(--text);
+      border-radius: 999px; border: 1px solid var(--border);
+      padding: 4px 10px; font-size: 0.78rem; outline: none;
+    }
+
+    .dynamic-area {
+      border-radius: 14px; background: rgba(15,23,42,0.9);
+      border: 1px dashed rgba(55,65,81,0.9); padding: 10px 12px;
+      min-height: 80px;
+    }
+
+    .hint { font-size: 0.78rem; color: var(--muted); }
+    .kbd {
+      display: inline-flex; min-width: 22px; padding: 2px 6px;
+      border-radius: 6px; border: 1px solid rgba(148,163,184,0.6);
+      background: rgba(15,23,42,0.95); font-size: 0.76rem; margin-right: 4px;
+      justify-content: center;
+    }
+    .mapping-row { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 0.78rem; }
+    
+    /* JOYSTICK */
+    #joystick-container { display: none; text-align: center; }
+    #joystick-zone {
+      width: 200px; height: 200px; margin: 6px auto 4px;
+      border-radius: 50%;
+      background: radial-gradient(circle at top, rgba(59,130,246,0.16), rgba(15,23,42,0.95));
+      border: 1px solid rgba(148,163,184,0.55);
+      position: relative;
+    }
+    .note { font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
+
+    /* RELAY & SPRAYER */
+    .relay-row { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+    .relay-state { font-size: 0.78rem; text-align: center; margin-top: 4px; }
+    .relay-on { color: var(--success); font-weight: 600; }
+    .relay-off { color: var(--muted); }
+
+    .dashed-separator {
+      margin: 20px 0; width: 100%; height: 1px;
+      border-top: 1px dashed rgba(148,163,184,0.4);
+    }
+
+    /* SPRAYER SPEED */
+    .slider-wrapper { margin-top: 16px; margin-bottom: 8px; padding: 0 4px; }
+    .slider-header { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-bottom: 8px; }
+    .range-input {
+      -webkit-appearance: none; width: 100%; height: 6px; border-radius: 999px;
+      background: rgba(55,65,81,0.8); outline: none; margin: 0;
+    }
+    .range-input::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #f9fafb; border: 2px solid #3b82f6; cursor: pointer;
+      box-shadow: 0 0 8px rgba(59,130,246,0.6);
+    }
+    .range-labels {
+      display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--muted); margin-top: 6px;
+    }
+
+    /* SPRAYER D-PAD */
+    .sprayer-dpad {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: auto auto auto;
+      gap: 6px; margin-top: 10px;
+      align-items: center; justify-items: center;
+    }
+    .sprayer-dpad .btn { padding: 8px; font-size: 0.8rem; height: 45px; }
+    
+    .spray-group-title {
+      font-size: 0.8rem; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #e5e7eb; margin-bottom: 4px;
+    }
+
+    footer { margin-top: 12px; text-align: center; font-size: 0.74rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title">
+        <div class="title-badge"><span></span></div>
+        Unitree Go2 Control
+      </div>
+      <div class="status-pill">
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status-text">ROS: Disconnected</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      
+      <section class="panel">
+        <h2>Movement Buttons</h2>
+        <div class="panel-sub">Forward / back / turn over <code>/cmd_vel</code></div>
+
+        <div class="speed-row">
+          <span class="speed-label">Speed:</span>
+          <button class="speed-pill" data-speed="slow">Slow</button>
+          <button class="speed-pill active" data-speed="mid">Mid</button>
+          <button class="speed-pill" data-speed="fast">Fast</button>
+        </div>
+
+        <button class="btn btn-primary" id="btn-forward">⬆ Forward</button>
+        <div class="btn-spacer"></div>
+        <button class="btn btn-primary" id="btn-backward">⬇ Backward</button>
+
+        <div class="lr-row">
+          <button class="btn" id="btn-left">⬅ Left</button>
+          <button class="btn" id="btn-right">Right ➡</button>
+        </div>
+
+        <div style="height: 20px;"></div>
+        <div style="display:flex; justify-content:center;">
+          <button class="btn btn-danger btn-circle" id="btn-stop">STOP</button>
+        </div>
+
+        <div class="dashed-separator"></div>
+        <div class="panel-sub" style="text-align:center;">Action Modes</div>
+        
+        <div class="lr-row">
+          <button class="btn" id="btn-staticwalk">Static Walk</button>
+          <button class="btn" id="btn-freewalk">Free Walk</button>
+        </div>
+
+        <div class="lr-row">
+          <button class="btn" id="btn-standup">Stand Up</button>
+          <button class="btn" id="btn-standdown">Crouch</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Video Stream</h2>
+        <div class="panel-sub">Front camera via Flask MJPEG</div>
+
+        <div class="video-shell">
+          <div class="video-frame">
+            <img id="stream" alt="Video stream not available" />
+          </div>
+
+          <div class="ip-row">
+            <span id="ip-label">ROS IP: <code>localhost</code></span>
+            <span>Use <code>?ros_ip=192.168.x.x</code></span>
+          </div>
+
+          <div class="mode-row">
+            <span style="font-size:0.78rem; color:var(--muted);">Control Mode:</span>
+            <div class="mode-select">
+              <select id="control-mode">
+                <option value="keyboard" selected>Keyboard</option>
+                <option value="joystick">Virtual Joystick</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="dynamic-area">
+            <div id="keyboard-help">
+              <div class="hint">Keyboard control (focus this tab):</div>
+              <div class="mapping-row">
+                <span><span class="kbd">W</span> Forward</span>
+                <span><span class="kbd">S</span> Backward</span>
+                <span><span class="kbd">A</span> Left</span>
+                <span><span class="kbd">D</span> Right</span>
+                <span><span class="kbd">Space</span> Stop</span>
+              </div>
+            </div>
+
+            <div id="joystick-container">
+              <div class="hint">Use joystick to move.</div>
+              <div id="joystick-zone"></div>
+              <div class="note">Release to stop.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Relay Control</h2>
+        <div class="panel-sub">Toggle relay via <code>/ctrl_cmd</code></div>
+
+        <div class="relay-row">
+          <button class="btn btn-primary" id="relay-on">Relay ON</button>
+          <button class="btn" id="relay-off">Relay OFF</button>
+          <div class="relay-state">
+            Relay: <span id="relay-state-label" class="relay-off">Unknown</span>
+          </div>
+        </div>
+
+        <div class="slider-wrapper">
+          <div class="slider-header">
+            <span>Sprayer Flow</span>
+            <span id="speed-val-display" style="color:#e5e7eb">Medium</span>
+          </div>
+          <input type="range" id="spray-speed-slider" class="range-input" min="1" max="3" step="1" value="2">
+          <div class="range-labels">
+            <span>Minimum</span>
+            <span>Medium</span>
+            <span>Maximum</span>
+          </div>
+        </div>
+
+        <div class="dashed-separator"></div>
+
+        <div class="spray-group-title">Sprayer Direction</div>
+        <div class="panel-sub">Control Pan/Tilt actuators</div>
+
+        <div class="sprayer-dpad">
+          <div></div>
+          <button class="btn btn-primary" id="tilt_up">Up ⬆</button>
+          <div></div>
+
+          <button class="btn" id="pan_left">⬅ Left</button>
+          <button class="btn" id="btn-global" style="font-size:0.7rem">Global</button>
+          <button class="btn" id="pan_right">Right ➡</button>
+
+          <div></div>
+          <button class="btn btn-primary" id="tilt_down">Down ⬇</button>
+          <div></div>
+        </div>
+        
+        <div class="relay-state" style="margin-top:10px;">
+           Tilt: <span id="tilt-display">--</span> | Pan: <span id="pan-display">--</span>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      Unitree Go2 Web Controller
+    </footer>
+  </div>
+
+  <script>
+    // ============================================================
+    // 1. SETUP & CONFIGURATION
+    // ============================================================
+    const urlParams = new URLSearchParams(window.location.search);
+    const ros_ip = urlParams.get("ros_ip") || "localhost";
+    
+    // Video Stream
+    const flaskPort = 8080;
+    const videoUrl = `http://${ros_ip}:${flaskPort}/video`;
+    document.getElementById("stream").src = videoUrl;
+    document.getElementById("ip-label").innerHTML = `ROS IP: <code>${ros_ip}</code>`;
+
+    // ROS Connection
+    const rosbridgePort = 9090;
+    const rosbridgeUrl = `ws://${ros_ip}:${rosbridgePort}`;
+    const ros = new ROSLIB.Ros({ url: rosbridgeUrl });
+
+    // UI Elements
+    const statusDot = document.getElementById("status-dot");
+    const statusText = document.getElementById("status-text");
+
+    function setStatus(state, msg) {
+      statusDot.classList.remove("connected", "error");
+      if (state === "connected") statusDot.classList.add("connected");
+      if (state === "error") statusDot.classList.add("error");
+      statusText.textContent = msg;
+    }
+
+    ros.on("connection", () => setStatus("connected", "ROS: Connected"));
+    ros.on("error", (err) => setStatus("error", "ROS: Error"));
+    ros.on("close", () => setStatus(null, "ROS: Disconnected"));
+
+    // ============================================================
+    // 2. ROS TOPICS
+    // ============================================================
+    const cmdVel = new ROSLIB.Topic({
+      ros,
+      name: "/cmd_vel_smoothed",
+      messageType: "geometry_msgs/msg/Twist",
+    });
+
+    const relayPub = new ROSLIB.Topic({
+      ros,
+      name: "/ctrl_cmd",
+      messageType: "std_msgs/msg/Int32",
+    });
+
+    const panPub = new ROSLIB.Topic({
+      ros,
+      name: "/pan_angle",
+      messageType: "std_msgs/msg/Int32",
+    });
+
+    const tiltPub = new ROSLIB.Topic({
+      ros,
+      name: "/tilt_angle",
+      messageType: "std_msgs/msg/Int32",
+    });
+
+    // Action Movement
+    const extra_ctrl_Pub = new ROSLIB.Topic({
+      ros,
+      name: "/extra_control",
+      messageType: "std_msgs/msg/Int32",
+    });
+
+    // ============================================================
+    // 3. MOVEMENT LOGIC
+    // ============================================================
+    const speedProfiles = {
+      slow: { linearBtn: 0.25, linearJoy: 0.25, angular: 0.5 },
+      mid:  { linearBtn: 0.5,  linearJoy: 0.7,  angular: 2.0 },
+      fast: { linearBtn: 1.0,  linearJoy: 1.5,  angular: 2.5 },
+    };
+    let currentSpeed = "mid";
+
+    function getProfile() { return speedProfiles[currentSpeed]; }
+
+    // Speed UI
+    const speedPills = document.querySelectorAll(".speed-pill");
+    speedPills.forEach((pill) => {
+      pill.addEventListener("click", () => {
+        currentSpeed = pill.getAttribute("data-speed");
+        speedPills.forEach((p) => p.classList.toggle("active", p === pill));
+      });
+    });
+
+    // Velocity Sender
+    function sendVelocity(lx, az) {
+      const twist = new ROSLIB.Message({
+        linear: { x: lx, y: 0.0, z: 0.0 },
+        angular: { x: 0.0, y: 0.0, z: az },
+      });
+      cmdVel.publish(twist);
+    }
+    function stopRobot() { sendVelocity(0, 0); }
+
+    // Button Event Listeners
+    document.getElementById("btn-forward").onclick = () => sendVelocity(getProfile().linearBtn, 0);
+    document.getElementById("btn-backward").onclick = () => sendVelocity(-getProfile().linearBtn, 0);
+    document.getElementById("btn-left").onclick = () => sendVelocity(0, getProfile().angular);
+    document.getElementById("btn-right").onclick = () => sendVelocity(0, -getProfile().angular);
+    document.getElementById("btn-stop").onclick = stopRobot;
+
+    // EXTRA CONTROL LISTENERS
+    document.getElementById("btn-staticwalk").onclick = () => {
+      extra_ctrl_Pub.publish({ data: 0 });
+    };
+    document.getElementById("btn-freewalk").onclick = () => {
+      extra_ctrl_Pub.publish({ data: 1 });
+    };  
+    document.getElementById("btn-standup").onclick = () => {
+      extra_ctrl_Pub.publish({ data: 2 });
+    }; 
+    document.getElementById("btn-standdown").onclick = () => {
+      extra_ctrl_Pub.publish({ data: 3 });
+    }; 
+
+    // ============================================================
+    // 4. CONTROL MODE (KEYBOARD / STATIC JOYSTICK)
+    // ============================================================
+    let controlMode = "keyboard";
+    const controlSelect = document.getElementById("control-mode");
+    const keyboardHelp = document.getElementById("keyboard-help");
+    const joystickContainer = document.getElementById("joystick-container");
+
+    controlSelect.addEventListener("change", () => {
+      controlMode = controlSelect.value;
+      stopRobot();
+      if (controlMode === "keyboard") {
+        keyboardHelp.style.display = "block";
+        joystickContainer.style.display = "none";
+      } else {
+        keyboardHelp.style.display = "none";
+        joystickContainer.style.display = "block";
+        if(joystick && joystick[0]) joystick[0].ui.el.style.display = 'block';
+      }
+    });
+
+    // Keyboard Handler
+    document.addEventListener("keydown", (e) => {
+      if (controlMode !== "keyboard") return;
+      const p = getProfile();
+      switch (e.key.toLowerCase()) {
+        case "w": sendVelocity(p.linearJoy, 0); break;
+        case "s": sendVelocity(-p.linearJoy, 0); break;
+        case "a": sendVelocity(0, p.angular); break;
+        case "d": sendVelocity(0, -p.angular); break;
+        case " ": e.preventDefault(); stopRobot(); break;
+      }
+    });
+    document.addEventListener("keyup", () => {
+      if (controlMode === "keyboard") stopRobot();
+    });
+
+    // Static Joystick Setup 
+    let joystick = null;
+    const joystickZone = document.getElementById("joystick-zone");
+
+    if (joystickZone && window.nipplejs) {
+      joystick = nipplejs.create({
+        zone: joystickZone,
+        mode: "static",   
+        position: { left: '50%', top: '50%' },
+        size: 120,
+        color: "white",
+        restOpacity: 0.8
+      });
+
+      joystick.on("move", (evt, data) => {
+        if (controlMode !== "joystick") return;
+        if (!data || !data.vector) return;
+        const p = getProfile();
+        const lx = data.vector.y * p.linearJoy; 
+        const az = -data.vector.x * p.angular; 
+        sendVelocity(lx, az);
+      });
+
+      joystick.on("end", () => {
+        if (controlMode === "joystick") stopRobot();
+      });
+    }
+
+    // ============================================================
+    // 5. RELAY, SPRAYER SPEED & DIRECTION LOGIC 
+    // ============================================================
+    // Default is Medium (1120)
+    let selectedSprayCommand = 1120; 
+    let isRelayActive = false;
+
+    // 2. RELAY CONTROL (The Trigger)
+    const relayLabel = document.getElementById("relay-state-label");
+    
+    document.getElementById("relay-on").onclick = () => {
+      // When we click ON, the CURRENTLY selected speed from the slider
+      relayPub.publish({ data: selectedSprayCommand });
+      
+      relayLabel.textContent = "ON";
+      relayLabel.className = "relay-on";
+      isRelayActive = true;
+    };
+
+    document.getElementById("relay-off").onclick = () => {
+      relayPub.publish({ data: 1000 }); // Standard OFF command
+      
+      relayLabel.textContent = "OFF";
+      relayLabel.className = "relay-off";
+      isRelayActive = false;
+    };
+
+    // 3. SPRAYER SPEED SELECTION
+    const speedSlider = document.getElementById("spray-speed-slider");
+    const speedDisplay = document.getElementById("speed-val-display");
+
+    speedSlider.addEventListener("input", function() {
+      const val = parseInt(this.value);
+      let label = "Medium";
+      
+      if (val === 1) { 
+        label = "Minimum"; 
+        selectedSprayCommand = 1100; 
+      } else if (val === 2) { 
+        label = "Medium";  
+        selectedSprayCommand = 1180; 
+      } else if (val === 3) { 
+        label = "Maximum"; 
+        selectedSprayCommand = 1250; 
+      }
+      
+      speedDisplay.textContent = label;
+
+      // If the relay is ALREADY on, update the speed live.
+      if (isRelayActive) {
+         relayPub.publish({ data: selectedSprayCommand });
+      }
+    });
+
+    // ------------------------------------------------------------
+    // Sprayer Direction (Pan/Tilt) with Press-and-Hold
+    // ------------------------------------------------------------
+    let tilt_val = 2090; 
+    let pan_val = 3045;  
+    let global_pan_val = 3045; 
+    let gap_val = 50; 
+
+    const tiltDisplay = document.getElementById("tilt-display");
+    const panDisplay = document.getElementById("pan-display");
+
+    function updateDisplay() {
+      tiltDisplay.textContent = tilt_val;
+      panDisplay.textContent = pan_val;
+    }
+    updateDisplay(); // Initialize labels
+
+    // --- Interval Logic for Press-and-Hold ---
+    let intervalId = null;
+
+    function startUpdating(actionCallback) {
+      if (intervalId) clearInterval(intervalId);
+      // Run once immediately
+      actionCallback();
+      // Then run repeatedly every 50ms
+      intervalId = setInterval(actionCallback, 50);
+    }
+
+    function stopUpdating() {
+      if (intervalId) clearInterval(intervalId);
+      intervalId = null;
+      // Re-send the final position to ensure the servo holds this lock
+      relayPub.publish({ data: pan_val });
+      relayPub.publish({ data: tilt_val });
+    }
+
+    // --- TILT CONTROLS ---
+    const btnTiltUp = document.getElementById("tilt_up");
+    const btnTiltDown = document.getElementById("tilt_down");
+
+    const doTiltUp = () => {
+      tilt_val += 3; 
+      if (tilt_val > 2130) tilt_val = 2130; 
+      relayPub.publish({ data: tilt_val }); 
+      updateDisplay();
+    };
+    const doTiltDown = () => {
+      tilt_val -= 3; 
+      if (tilt_val < 2050) tilt_val = 2050; 
+      relayPub.publish({ data: tilt_val }); 
+      updateDisplay();
+    };
+
+    // Tilt Up Events
+    btnTiltUp.onmousedown = () => startUpdating(doTiltUp);
+    btnTiltUp.onmouseup = stopUpdating;
+    btnTiltUp.onmouseleave = stopUpdating;
+
+    // Tilt Down Events 
+    btnTiltDown.onmousedown = () => startUpdating(doTiltDown);
+    btnTiltDown.onmouseup = stopUpdating;
+    btnTiltDown.onmouseleave = stopUpdating;
+
+
+    // --- PAN CONTROLS ---
+    const btnPanLeft = document.getElementById("pan_left");
+    const btnPanRight = document.getElementById("pan_right");
+
+    const doPanLeft = () => {
+      pan_val -= 1; 
+      if (pan_val < (global_pan_val - gap_val)) pan_val = (global_pan_val - gap_val);
+      relayPub.publish({ data: pan_val });
+      updateDisplay();
+    };
+    
+    const doPanRight = () => {
+      pan_val += 1; 
+      if (pan_val > (global_pan_val + gap_val)) pan_val = (global_pan_val + gap_val);
+      relayPub.publish({ data: pan_val });
+      updateDisplay();
+    };
+
+    // Pan Left Events 
+    btnPanLeft.onmousedown = () => startUpdating(doPanLeft);
+    btnPanLeft.onmouseup = stopUpdating;
+    btnPanLeft.onmouseleave = stopUpdating;
+
+    // Pan Right Events 
+    btnPanRight.onmousedown = () => startUpdating(doPanRight);
+    btnPanRight.onmouseup = stopUpdating;
+    btnPanRight.onmouseleave = stopUpdating;
+
+
+    // --- GLOBAL / RESET CONTROL ---
+    // Sets the CURRENT position as the center
+    document.getElementById("btn-global").onclick = () => {
+      global_pan_val = pan_val;
+      
+      relayPub.publish({ data: pan_val });
+      console.log("Global Center Updated to: " + global_pan_val);
+    };
+
+  </script>
+</body>
+</html>
