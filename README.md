@@ -1,3 +1,1 @@
-
-
 Created a mosquito spray attachment on top of the robot dog. This project is later then displayed and shown to the government official of Malaysia and other investor. Me and my team, just three student applied our knowledge to create this. Using the resources our lecturer gave and using Linux VirtualBox to control the robot box and other coding.
